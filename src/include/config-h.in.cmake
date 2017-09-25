@@ -90,6 +90,9 @@
 /* Defined if you have libaio */
 #cmakedefine HAVE_LIBAIO
 
+/* Defind if you have POSIX AIO */
+#cmakedefine HAVE_POSIXAIO
+
 /* Defined if OpenLDAP enabled */
 #cmakedefine HAVE_OPENLDAP
 

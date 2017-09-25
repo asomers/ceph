@@ -554,6 +554,7 @@ int KernelDevice::_sync_write(uint64_t off, bufferlist &bl, bool buffered)
     derr << __func__ << " pwritev error: " << cpp_strerror(r) << dendl;
     return r;
   }
+#ifdef HAVE_SYNC_FILE_RANGE
   if (buffered) {
     // initiate IO (but do not wait)
     r = ::sync_file_range(fd_buffered, off, len, SYNC_FILE_RANGE_WRITE);
@@ -563,6 +564,7 @@ int KernelDevice::_sync_write(uint64_t off, bufferlist &bl, bool buffered)
       return r;
     }
   }
+#endif
 
   io_since_flush.store(true);
 
