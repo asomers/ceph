@@ -191,12 +191,14 @@ void KernelDevice::close()
   path.clear();
 }
 
+#if 0	// Need FreeBSD support for get_dev_property
 static string get_dev_property(const char *dev, const char *property)
 {
   char val[1024] = {0};
   get_block_device_string_property(dev, property, val, sizeof(val));
   return val;
 }
+#endif
 
 int KernelDevice::collect_metadata(const string& prefix, map<string,string> *pm) const
 {
@@ -233,6 +235,7 @@ int KernelDevice::collect_metadata(const string& prefix, map<string,string> *pm)
       {
 	(*pm)[prefix + "partition_path"] = string(partition_path);
 	(*pm)[prefix + "dev_node"] = string(dev_node);
+#if 0	// Need FreeBSD support for get_dev_property
 	(*pm)[prefix + "model"] = get_dev_property(dev_node, "device/model");
 	(*pm)[prefix + "dev"] = get_dev_property(dev_node, "dev");
 
@@ -248,6 +251,7 @@ int KernelDevice::collect_metadata(const string& prefix, map<string,string> *pm)
 	if (nvme_vendor.length()) {
 	  (*pm)[prefix + "type"] = "nvme";
 	}
+#endif
       }
     }
   } else {
