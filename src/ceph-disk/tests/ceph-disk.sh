@@ -38,11 +38,6 @@ CEPH_DISK_ARGS=
 CEPH_DISK_ARGS+=" --verbose"
 CEPH_DISK_ARGS+=" --prepend-to-path="
 : ${CEPH_DISK_TIMEOUT:=360}
-if [ `uname` != FreeBSD ]; then
-    PROCDIR=""
-else
-    PROCDIR="/compat/linux"
-fi
 
 cat=$(which cat)
 diff=$(which diff)
@@ -75,7 +70,7 @@ function teardown() {
         rm -fr $dir/*/*db
         __teardown_btrfs $dir
     fi
-    grep " $(pwd)/$dir/" < ${PROCDIR}/proc/mounts | while read mounted rest ; do
+    mount | grep " $(pwd)/$dir/" | while read mounted rest ; do
         umount $mounted
     done
     rm -fr $dir
@@ -88,7 +83,7 @@ function command_fixture() {
     local command=$1
     shift
     local fpath=`readlink -f $(which $command)`
-    [ "$fpath" = `readlink -f $CEPH_BIN/$command` ] || [ "$fpath" = `readlink -f $(pwd)/$command` ] || return 1
+    [ "$fpath" = "`readlink -f $CEPH_BIN/$command`" ] || [ "$fpath" = "`readlink -f $(pwd)/$command`" ] || return 1
 
     cat > $dir/$command <<EOF
 #!/usr/bin/env bash
