@@ -12,6 +12,11 @@
  *
  */
 
+#if defined(__FreeBSD__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
+
 #include "common/pick_address.h"
 #include "include/ipaddr.h"
 #include "include/str_list.h"
@@ -164,6 +169,9 @@ void pick_addresses(CephContext *cct, int needs)
     exit(1);
   }
 
+  lderr(cct) << "public_addr is " << cct->_conf->public_addr << dendl;
+  lderr(cct) << "public_network is " << cct->_conf->public_network << dendl;
+
   if ((needs & CEPH_PICK_ADDRESS_PUBLIC)
       && cct->_conf->public_addr.is_blank_ip()
       && !cct->_conf->public_network.empty()) {
@@ -222,6 +230,12 @@ std::string pick_iface(CephContext *cct, const struct sockaddr_storage &network)
 
 bool have_local_addr(CephContext *cct, const list<entity_addr_t>& ls, entity_addr_t *match)
 {
+  entity_addr_t a;
+#if defined(__FreeBSD__)
+  bool have_ipv4 = false;
+  bool have_ipv6 = false;
+  size_t size;
+#endif
   struct ifaddrs *ifa;
   int r = getifaddrs(&ifa);
   if (r < 0) {
@@ -232,7 +246,12 @@ bool have_local_addr(CephContext *cct, const list<entity_addr_t>& ls, entity_add
   bool found = false;
   for (struct ifaddrs *addrs = ifa; addrs != NULL; addrs = addrs->ifa_next) {
     if (addrs->ifa_addr) {
-      entity_addr_t a;
+#if defined(__FreeBSD__)
+      if (addrs->ifa_addr->sa_family == AF_INET)
+	have_ipv4 = true;
+      else if (addrs->ifa_addr->sa_family == AF_INET6)
+	have_ipv6 = true;
+#endif
       a.set_sockaddr(addrs->ifa_addr);
       for (list<entity_addr_t>::const_iterator p = ls.begin(); p != ls.end(); ++p) {
         if (a.is_same_host(*p)) {
@@ -243,6 +262,43 @@ bool have_local_addr(CephContext *cct, const list<entity_addr_t>& ls, entity_add
       }
     }
   }
+#if defined(__FreeBSD__)
+  int jailed;	/* Would be boolean_t in C */
+  size = sizeof(jailed);
+  if (sysctlbyname("security.jail.jailed", &jailed, &size, NULL, 0) == 0 &&
+      jailed == 1) {
+    // Shared-IP FreeBSD jails can still connect to localhost even though it
+    // doesn't show up in getifaddrs
+    if (have_ipv4) {
+      struct sockaddr_in in;
+      in.sin_len = sizeof(in);
+      in.sin_family = AF_INET;
+      in.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+      a.set_sockaddr((struct sockaddr*)&in);
+      for (list<entity_addr_t>::const_iterator p = ls.begin(); p != ls.end(); ++p) {
+        if (a.is_same_host(*p)) {
+          *match = *p;
+          found = true;
+          goto out;
+        }
+      }
+    }
+    if (have_ipv6) {
+      struct sockaddr_in6 in6;
+      in6.sin6_len = sizeof(in6);
+      in6.sin6_family = AF_INET6;
+      in6.sin6_addr = IN6ADDR_LOOPBACK_INIT;
+      a.set_sockaddr((struct sockaddr*)&in6);
+      for (list<entity_addr_t>::const_iterator p = ls.begin(); p != ls.end(); ++p) {
+        if (a.is_same_host(*p)) {
+          *match = *p;
+          found = true;
+          goto out;
+        }
+      }
+    }
+  }
+#endif
 
  out:
   freeifaddrs(ifa);
