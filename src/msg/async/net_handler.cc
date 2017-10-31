@@ -42,7 +42,6 @@ int NetHandler::create_socket(int domain, bool reuse_addr)
     return -r;
   }
 
-#if !defined(__FreeBSD__)
   /* Make sure connection-intensive things like the benchmark
    * will be able to close/open sockets a zillion of times */
   if (reuse_addr) {
@@ -55,7 +54,6 @@ int NetHandler::create_socket(int domain, bool reuse_addr)
       return -r;
     }
   }
-#endif
 
   return s;
 }
