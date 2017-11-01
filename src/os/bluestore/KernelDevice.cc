@@ -623,7 +623,7 @@ int KernelDevice::aio_write(
 
   _aio_log_start(ioc, off, len);
 
-#ifdef HAVE_LIBAIO
+#if defined(HAVE_LIBAIO) || defined(HAVE_POSIXAIO)
   if (aio && dio && !buffered) {
     ioc->pending_aios.push_back(aio_t(ioc, fd_direct));
     ++ioc->num_pending;
@@ -699,7 +699,7 @@ int KernelDevice::aio_read(
 	  << dendl;
 
   int r = 0;
-#ifdef HAVE_LIBAIO
+#if defined(HAVE_LIBAIO) || defined(HAVE_POSIXAIO)
   if (aio && dio) {
     _aio_log_start(ioc, off, len);
     ioc->pending_aios.push_back(aio_t(ioc, fd_direct));
